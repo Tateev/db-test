@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  flask-app:
+    build: .  # Path to your Flask app Dockerfile
+    ports:
+      - "8080:5000"  # Mapping Flask app's port
+    environment:
+      - DATABASE_URL=postgresql://postgres:password@postgres-db:5432/db_name  # Change the URL accordingly
+      - FLASK_APP=./FlaskCRUDApp/main.py
+    depends_on:
+      - postgres-db
+
+  postgres-db:
+    image: postgres:latest
+    environment:
+      POSTGRES_DB: db_name  # Change the database name
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"  # Expose PostgreSQL port
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+volumes:
+  postgres-data:

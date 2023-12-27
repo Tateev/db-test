@@ -1,59 +1,68 @@
+import os
 from flask import Flask, render_template, jsonify, request
 from flask_cors import CORS
 
+from sqlalchemy import Column, Integer, String, create_engine, engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+
 app = Flask(__name__, static_url_path='/static', static_folder='static')
 CORS(app)
-data = [
-    {
-        'user_id': 1,
-        'name': 'value1',
-        'surname': 'value2',
-        'email': 'value3'
-    },
-    {
-        'user_id': 2,
-        'name': 'value2',
-        'surname': 'value3',
-        'email': 'value4'
-    }
-]
+
+engine = create_engine(os.environ.get('DATABASE_URL'))
+
+# Create a declarative base for models
+Base = declarative_base()
+
+# Create a session class bound to the engine
+Session = sessionmaker(bind=engine)
 
 
-@app.route('/Users', methods=['GET'])
-def get_users():
-    return data
+class Scientist(Base):
+
+    __tablename__ = 'scientist'
+
+    id = Column(Integer, primary_key=True)
+    f_name = Column(String(100))
+    country = Column(String(100))
+    a_degree = Column(String(100))
+    spec = Column(String(50))
+    org = Column(String(100))
 
 
-@app.route('/Users/<int:id_>', methods=['GET'])
-def get_user(id_):
-    for user in data:
-        if user['user_id'] == id_:
-            return user
-    return {'error': 'User not found'}
+@app.route('/Scientist/', methods=['GET'])
+def get_scientists():
+    session = Session()
+    return session.query(Scientist).all()
 
 
-@app.route('/Users', methods=['POST'])
-def create_user():
-    if 'name' in request.json and 'surname' in request.json and 'email' in request.json:
-        new_user = {
-            'user_id': len(data) + 1,
-            'name': request.json['name'],
-            'surname': request.json['surname'],
-            'email': request.json['email']
-        }
-        data.append(new_user)
-        return new_user
+
+@app.route('/Scientist', methods=['POST'])
+def create_scientist():
+    if request.method == 'POST':
+        data = request.json
+        new_scientist = Scientist(name=data['name'], field=data['field'])
+        Base.session.add(new_scientist)
+        Base.session.commit()
+        return jsonify({'message': 'Scientist created successfully'}), 201
+    else:
+        return jsonify({'message': 'Invalid request method'}), 405
 
 
-@app.route('/Users/<int:id_>', methods=['PUT'])
+@app.route('/Scientist/', methods=['PUT'])
 def update_user(id_):
-    for user in data:
-        if user['user_id'] == id_:
-            user['name'] = request.json['name']
-            user['surname'] = request.json['surname']
-            user['email'] = request.json['email']
-            return user
-    return {'error': 'User not found'}
+    if request.method == 'PUT':
+        scientist = Scientist.query.get(id_)
+        if scientist:
+            data = request.json
+            scientist.name = data.get('name', scientist.name)
+            scientist.field = data.get('field', scientist.field)
+            Base.session.commit()
+            return jsonify({'message': f'Scientist {id_} updated successfully'}), 200
+        else:
+            return jsonify({'message': f'Scientist {id_} not found'}), 404
+    else:
+        return jsonify({'message': 'Invalid request method'}), 405
 
 
 if __name__ == '__main__':
